@@ -4,4 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ssh_ui = "0.1.0"
+ssh_ui = { path = "../substranding/ssh_ui" }
+anyhow = "1.0.68"
+html2text = "0.4.5"
+lazy_static = "1.4.0"
+russh-keys = "0.22.0"
+tantivy = "0.19.1"
+tokio = { version = "1", features = ["full"] }
+zim = "0.4.0"

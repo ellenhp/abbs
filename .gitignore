@@ -1,1 +1,4 @@
 /target
+/_search_index*
+ssh_host*
+*.zim
