@@ -6,8 +6,7 @@ use std::{
 
 use bbs::BbsApp;
 use library::{push_library, Library};
-use russh_keys::decode_secret_key;
-use ssh_ui::AppServer;
+use ssh_ui::{russh_keys::decode_secret_key, AppServer};
 use tokio::spawn;
 
 mod bbs;
@@ -25,7 +24,7 @@ async fn main() {
         let lib = Library::open::<String>("library", "library.zim".into(), "_search_index".into())
             .await
             .expect("Failed to open library");
-
+        println!("Opened library");
         push_library(lib);
     });
 

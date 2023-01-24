@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc::Sender, Arc, Mutex};
 
 use ssh_ui::cursive::{
     event::Callback,
@@ -20,15 +20,22 @@ fn search_cb(
     text: &str,
     lib_name: &str,
     search_result_repository: Arc<Mutex<(u64, u64, Arc<Vec<Article>>, bool)>>,
+    relayout_sender: &Sender<()>,
 ) -> Result<(), anyhow::Error> {
     let mut search_box = siv.find_name::<EditView>("library_search_box").unwrap();
     if text.is_empty() {
         search_box.set_filler("Search for a book");
 
-        let mut result_tuple = search_result_repository.lock().unwrap();
-        result_tuple.0 += 1;
-        result_tuple.1 = result_tuple.0;
-        result_tuple.2 = Vec::new().into();
+        {
+            let mut result_tuple = search_result_repository.lock().unwrap();
+            result_tuple.0 += 1;
+            result_tuple.1 = result_tuple.0;
+            result_tuple.2 = Vec::new().into();
+            result_tuple.3 = true;
+        }
+        if let Err(err) = relayout_sender.send(()) {
+            println!("Couldn't force re-layout: {}", err);
+        }
 
         return Ok(());
     } else {
@@ -45,17 +52,23 @@ fn search_cb(
             result_tuple.3 = true;
             result_tuple.0
         };
+        let relayout_sender = relayout_sender.clone();
         spawn(async move {
             let articles = search(&lib, &text, max_results);
             match articles {
                 Ok(articles) => {
-                    let mut result_tuple = search_result_repository.lock().unwrap();
-                    if result_tuple.1 > current_counter_at_start {
-                        return;
+                    {
+                        let mut result_tuple = search_result_repository.lock().unwrap();
+                        if result_tuple.1 > current_counter_at_start {
+                            return;
+                        }
+                        result_tuple.1 = current_counter_at_start;
+                        result_tuple.2 = articles.into();
+                        result_tuple.3 = true;
                     }
-                    result_tuple.1 = current_counter_at_start;
-                    result_tuple.2 = articles.into();
-                    result_tuple.3 = true;
+                    if let Err(err) = relayout_sender.send(()) {
+                        println!("Couldn't force re-layout: {}", err);
+                    }
                 }
                 Err(err) => {
                     println!("Error during search: {}", err);
@@ -87,15 +100,22 @@ fn update_search_results(
     result_tuple.3 = false;
 }
 
-pub fn library_view(lib_name: &str) -> (Box<dyn View>, Callback) {
+pub fn library_view(lib_name: &str, relayout_sender: Sender<()>) -> (Box<dyn View>, Callback) {
     let lib_name = lib_name.to_string();
     let search_result_repository = Arc::new(Mutex::new((0, 0, Arc::new(Vec::new()), false)));
     let search_box = {
         let search_result_repository = search_result_repository.clone();
+        let relayout_sender = relayout_sender.clone();
         EditView::new()
             .filler("Search for a book")
             .on_edit_mut(move |s, text, _cursor| {
-                match search_cb(s, text, &lib_name, search_result_repository.clone()) {
+                match search_cb(
+                    s,
+                    text,
+                    &lib_name,
+                    search_result_repository.clone(),
+                    &relayout_sender,
+                ) {
                     Ok(_) => {}
                     Err(err) => {
                         println!("Error during search: {}", err);
@@ -111,7 +131,6 @@ pub fn library_view(lib_name: &str) -> (Box<dyn View>, Callback) {
     };
     let results_box = SelectView::<Article>::new()
         .on_submit(|siv, item| {
-            dbg!(item);
             let viewer = new_viewer(siv, item.content_html.clone());
             siv.add_layer(viewer);
         })

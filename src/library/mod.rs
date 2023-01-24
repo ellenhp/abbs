@@ -63,7 +63,7 @@ impl Library {
         index_path: P,
     ) -> Result<Self, anyhow::Error> {
         let zim = Zim::new(zim_path)?;
-        let index = Self::ensure_indexed(&zim, index_path).await?;
+        let index = Self::ensure_indexed(&zim, index_path).await.unwrap();
         let reader = index
             .reader_builder()
             .reload_policy(ReloadPolicy::OnCommit)
@@ -110,46 +110,48 @@ impl Library {
             remove_dir(&tmp_path_string)?;
         }
         create_dir(&tmp_path)?;
-
-        let mut schema_builder = Schema::builder();
-        let title = schema_builder.add_text_field(TITLE_FIELD, STORED);
-        let title_lowercase = schema_builder.add_text_field(TITLE_LOWERCASE_FIELD, TEXT);
-        let cluster = schema_builder.add_u64_field(CLUSTER_FIELD, STORED);
-        let blob = schema_builder.add_u64_field(BLOB_FIELD, STORED);
-        let content = schema_builder.add_text_field(CONTENT_FIELD, TEXT);
-        let schema = schema_builder.build();
-        let index = Index::create_in_dir(tmp_path, schema)?;
-        let mut index_writer = index.writer(50_000_000)?;
-        let mut indexed = 0u32;
-        let mut total = 0u32;
-        for entry in zim.iterate_by_urls() {
-            total += 1;
-            if entry.mime_type != MimeType::Type("text/html".to_string()) {
-                continue;
-            }
-
-            match Self::index_document(
-                title,
-                title_lowercase,
-                content,
-                cluster,
-                blob,
-                &entry,
-                &zim,
-                &mut index_writer,
-            )
-            .into()
-            {
-                Ok(_) => {
-                    indexed += 1;
+        {
+            let mut schema_builder = Schema::builder();
+            let title = schema_builder.add_text_field(TITLE_FIELD, STORED);
+            let title_lowercase = schema_builder.add_text_field(TITLE_LOWERCASE_FIELD, TEXT);
+            let cluster = schema_builder.add_u64_field(CLUSTER_FIELD, STORED);
+            let blob = schema_builder.add_u64_field(BLOB_FIELD, STORED);
+            let content = schema_builder.add_text_field(CONTENT_FIELD, TEXT);
+            let schema = schema_builder.build();
+            let index = Index::create_in_dir(tmp_path, schema)?;
+            let mut index_writer = index.writer(50_000_000)?;
+            let mut indexed = 0u32;
+            let mut total = 0u32;
+            for entry in zim.iterate_by_urls() {
+                total += 1;
+                if entry.mime_type != MimeType::Type("text/html".to_string()) {
+                    continue;
                 }
-                Err(_) => todo!(),
-            };
-        }
-        index_writer.commit()?;
 
-        println!("Indexed {} of {} entries for zim file", indexed, total);
-        rename(tmp_path, final_path)?;
+                match Self::index_document(
+                    title,
+                    title_lowercase,
+                    content,
+                    cluster,
+                    blob,
+                    &entry,
+                    &zim,
+                    &mut index_writer,
+                )
+                .into()
+                {
+                    Ok(_) => {
+                        indexed += 1;
+                    }
+                    Err(_) => todo!(),
+                };
+            }
+            index_writer.commit()?;
+
+            println!("Indexed {} of {} entries for zim file", indexed, total);
+        }
+        rename(tmp_path, final_path.clone())?;
+        let index = Index::open_in_dir(final_path)?;
 
         Ok(index)
     }
@@ -178,7 +180,8 @@ impl Library {
         };
         let text = html2text::parse(content_raw.as_bytes())
             .render_plain(usize::MAX)
-            .into_string();
+            .into_string()
+            .to_lowercase();
         index_writer.add_document(doc!(
             title_field => title.clone(),
             title_lowercase_field => title.clone().to_lowercase(),
@@ -190,18 +193,37 @@ impl Library {
     }
 
     pub fn search(&self, title: &str, limit: usize) -> Result<Vec<Article>, anyhow::Error> {
-        let mut queries = Vec::new();
-        for t in title.split_whitespace() {
-            if t.trim().is_empty() {
-                continue;
+        let mut title_queries = Vec::new();
+        let mut content_queries = Vec::new();
+        {
+            let tokens = title.split_whitespace();
+            let len = title.split_whitespace().count();
+            for (idx, token) in tokens.enumerate() {
+                if token.trim().is_empty() {
+                    continue;
+                }
+                let title_term = Term::from_field_text(self.title_lowercase_field, token);
+                let content_term = Term::from_field_text(self.content_field, token);
+                let (title_query, content_query) = if idx == len - 1 {
+                    (
+                        FuzzyTermQuery::new_prefix(title_term, 1, true),
+                        FuzzyTermQuery::new_prefix(content_term, 1, true),
+                    )
+                } else {
+                    (
+                        FuzzyTermQuery::new(title_term, 1, true),
+                        FuzzyTermQuery::new(content_term, 1, true),
+                    )
+                };
+                title_queries.push((Occur::Should, Box::new(title_query) as Box<dyn Query>));
+                content_queries.push((Occur::Should, Box::new(content_query) as Box<dyn Query>));
             }
-            let term = Term::from_field_text(self.title_lowercase_field, &t.to_lowercase());
-            let title_query = FuzzyTermQuery::new_prefix(term, 1, true);
-            queries.push((Occur::Should, Box::new(title_query) as Box<dyn Query>));
         }
-        let top_docs = self
-            .searcher
-            .search(&BooleanQuery::new(queries), &TopDocs::with_limit(limit))?;
+        let query = BooleanQuery::new(vec![
+            (Occur::Should, Box::new(BooleanQuery::new(title_queries))),
+            (Occur::Should, Box::new(BooleanQuery::new(content_queries))),
+        ]);
+        let top_docs = self.searcher.search(&query, &TopDocs::with_limit(limit))?;
         let mut articles = Vec::new();
         for (_weight, doc) in top_docs {
             let title = self
