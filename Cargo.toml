@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ssh_ui = { path = "../substranding/ssh_ui" }
+ssh_ui = { path = "../ssh_ui" }
 anyhow = "1.0.68"
 html2text = "0.4.5"
 lazy_static = "1.4.0"

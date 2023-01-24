@@ -34,13 +34,21 @@ async fn main() {
     let keys = read_dir(".")
         .unwrap()
         .filter_map(Result::ok)
+        .filter(|key_path| {
+            key_path
+                .path()
+                .file_name()
+                .map(|name| name.to_string_lossy().starts_with("ssh_host_"))
+                == Some(true)
+        })
         .map(|key_path| File::open(key_path.path()))
         .filter_map(Result::ok)
         .map(|mut key_file| {
             let mut key_buf = String::new();
             key_file.read_to_string(&mut key_buf).unwrap();
-            decode_secret_key(&key_buf, None).unwrap()
+            decode_secret_key(&key_buf, None)
         })
+        .filter_map(Result::ok)
         .collect::<Vec<_>>();
     server.run(&keys, Arc::new(bbs_app)).await.unwrap();
 }
