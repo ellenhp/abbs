@@ -41,7 +41,7 @@ impl AppSession for BbsAppSession {
         &mut self,
         _siv: &mut Cursive,
         _handle: SessionHandle,
-        _pub_key: PublicKey,
+        _pub_key: Option<PublicKey>,
         force_relayout_sender: Sender<()>,
     ) -> Result<Box<dyn ssh_ui::cursive::View>, Box<dyn std::error::Error>> {
         let mut stack = Stack::new(force_relayout_sender.clone());

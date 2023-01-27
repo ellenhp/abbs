@@ -20,6 +20,8 @@ extern crate lazy_static;
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     spawn(async {
         let lib = Library::open::<String>("library", "library.zim".into(), "_search_index".into())
             .await
