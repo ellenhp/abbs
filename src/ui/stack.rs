@@ -27,7 +27,6 @@ pub struct Stack {
     stack: Arc<Mutex<Vec<Box<dyn View>>>>,
     dirty: bool,
     relayout_sender: Sender<()>,
-    callbacks: Vec<Callback>,
 }
 
 impl Stack {
@@ -36,7 +35,6 @@ impl Stack {
             stack: Arc::new(Mutex::new(Vec::new())),
             dirty: true,
             relayout_sender,
-            callbacks: Vec::new(),
         }
     }
 
@@ -63,7 +61,10 @@ impl Stack {
 
                 Ok(old)
             }
-            None => Err(StackError::StackEmpty),
+            None => {
+                siv.quit();
+                Err(StackError::StackEmpty)
+            }
         }
     }
 }

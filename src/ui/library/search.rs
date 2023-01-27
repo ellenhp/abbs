@@ -4,7 +4,7 @@ use ssh_ui::cursive::{
     direction::Direction,
     event::{AnyCb, Event, EventResult},
     view::{CannotFocus, Nameable, Resizable, Selector, ViewNotFound},
-    views::{EditView, LinearLayout, NamedView, ResizedView, SelectView},
+    views::{DummyView, EditView, LinearLayout, NamedView, ResizedView, SelectView},
     Printer, Vec2, View,
 };
 use tokio::spawn;
@@ -130,6 +130,7 @@ impl LibrarySearchView {
         LibrarySearchView {
             inner: LinearLayout::vertical()
                 .child(search_box.with_name("library_search_box"))
+                .child(DummyView)
                 .child(results_box.with_name("library_search_results"))
                 .full_screen(),
             search_result_repository,
@@ -159,7 +160,7 @@ impl View for LibrarySearchView {
             let articles = self
                 .inner
                 .get_inner_mut()
-                .get_child_mut(1)
+                .get_child_mut(2)
                 .unwrap()
                 .as_any_mut()
                 .downcast_mut::<NamedView<SelectView<Article>>>()

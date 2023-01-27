@@ -2,7 +2,8 @@ use std::sync::mpsc::Sender;
 
 use ssh_ui::{
     cursive::{
-        view::{Nameable, Resizable},
+        view::{Margins, Nameable, Resizable},
+        views::Dialog,
         Cursive,
     },
     russh_keys::key::PublicKey,
@@ -10,7 +11,7 @@ use ssh_ui::{
 };
 
 use crate::ui::{
-    library::search::LibrarySearchView,
+    home::home_screen::home_screen,
     stack::{Stack, STACK_NAME},
 };
 
@@ -45,13 +46,14 @@ impl AppSession for BbsAppSession {
     ) -> Result<Box<dyn ssh_ui::cursive::View>, Box<dyn std::error::Error>> {
         let mut stack = Stack::new(force_relayout_sender.clone());
         stack
-            .push(Box::new(LibrarySearchView::new(
-                "library",
-                force_relayout_sender.clone(),
-            )))
+            .push(home_screen(force_relayout_sender.clone()))
             .unwrap();
         self.relayout_sender = Some(force_relayout_sender);
-        Ok(Box::new(stack.with_name(STACK_NAME).full_screen()))
+        let dialog = Dialog::new()
+            .padding(Margins::lrtb(2, 2, 1, 1))
+            .content(stack.with_name(STACK_NAME).full_screen())
+            .full_screen();
+        Ok(Box::new(dialog))
     }
 
     fn on_tick(
