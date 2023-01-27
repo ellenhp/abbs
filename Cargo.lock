@@ -17,6 +17,7 @@ dependencies = [
  "lazy_static",
  "ssh_ui",
  "tantivy",
+ "thiserror",
  "tokio",
  "zim",
 ]
@@ -2494,9 +2495,9 @@ dependencies = [
 
 [[package]]
 name = "ssh_ui"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de75151c34efe168a01c43b794d03ddd370d704abf42d63249fd20d7e7186afa"
+checksum = "ade45d6077a3f4f8199a20a304292494be89b894af0f7553a7de5887056908a1"
 dependencies = [
  "anyhow",
  "async-std",

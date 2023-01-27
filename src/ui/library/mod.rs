@@ -6,8 +6,8 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use tantivy::collector::TopDocs;
-use tantivy::query::{BooleanQuery, FuzzyTermQuery, Occur, Query};
-use tantivy::schema::STORED;
+use tantivy::query::{BooleanQuery, FuzzyTermQuery, Occur, Query, TermQuery};
+use tantivy::schema::{IndexRecordOption, STORED};
 use tantivy::{
     schema::{Field, Schema, TEXT},
     Index, IndexWriter,
@@ -19,11 +19,11 @@ lazy_static! {
     static ref LIBRARY: Mutex<Vec<Library>> = Mutex::new(Vec::new());
 }
 
-pub(super) fn push_library(lib: Library) {
+pub(crate) fn push_library(lib: Library) {
     LIBRARY.lock().unwrap().push(lib);
 }
 
-pub(super) fn get_library(name: &str) -> Option<Library> {
+pub(crate) fn get_library(name: &str) -> Option<Library> {
     LIBRARY
         .lock()
         .unwrap()
@@ -39,7 +39,7 @@ static CLUSTER_FIELD: &str = "cluster";
 static BLOB_FIELD: &str = "blob";
 
 #[derive(Clone)]
-pub(super) struct Library {
+pub(crate) struct Library {
     name: String,
     zim: Arc<Zim>,
     searcher: Arc<Searcher>,
@@ -51,13 +51,13 @@ pub(super) struct Library {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct Article {
-    pub(super) title: String,
-    pub(super) content_html: String,
+pub(crate) struct Article {
+    pub(crate) title: String,
+    pub(crate) content_html: String,
 }
 
 impl Library {
-    pub(super) async fn open<P: AsRef<Path> + Sized>(
+    pub(crate) async fn open<P: AsRef<Path> + Sized>(
         name: &str,
         zim_path: P,
         index_path: P,
@@ -202,21 +202,34 @@ impl Library {
                 if token.trim().is_empty() {
                     continue;
                 }
-                let title_term = Term::from_field_text(self.title_lowercase_field, token);
-                let content_term = Term::from_field_text(self.content_field, token);
-                let (title_query, content_query) = if idx == len - 1 {
-                    (
-                        FuzzyTermQuery::new_prefix(title_term, 1, true),
-                        FuzzyTermQuery::new_prefix(content_term, 1, true),
-                    )
+                if token.len() > 3 {
+                    let title_term = Term::from_field_text(self.title_lowercase_field, token);
+                    let content_term = Term::from_field_text(self.content_field, token);
+                    let (title_query, content_query) = if idx == len - 1 {
+                        (
+                            FuzzyTermQuery::new_prefix(title_term, 1, true),
+                            FuzzyTermQuery::new_prefix(content_term, 1, true),
+                        )
+                    } else {
+                        (
+                            FuzzyTermQuery::new(title_term, 1, true),
+                            FuzzyTermQuery::new(content_term, 1, true),
+                        )
+                    };
+                    title_queries.push((Occur::Should, Box::new(title_query) as Box<dyn Query>));
+                    content_queries
+                        .push((Occur::Should, Box::new(content_query) as Box<dyn Query>));
                 } else {
-                    (
-                        FuzzyTermQuery::new(title_term, 1, true),
-                        FuzzyTermQuery::new(content_term, 1, true),
-                    )
-                };
-                title_queries.push((Occur::Should, Box::new(title_query) as Box<dyn Query>));
-                content_queries.push((Occur::Should, Box::new(content_query) as Box<dyn Query>));
+                    let title_term = Term::from_field_text(self.title_lowercase_field, token);
+                    let content_term = Term::from_field_text(self.content_field, token);
+                    let (title_query, content_query) = (
+                        TermQuery::new(title_term, IndexRecordOption::WithFreqs),
+                        TermQuery::new(content_term, IndexRecordOption::WithFreqs),
+                    );
+                    title_queries.push((Occur::Should, Box::new(title_query) as Box<dyn Query>));
+                    content_queries
+                        .push((Occur::Should, Box::new(content_query) as Box<dyn Query>));
+                }
             }
         }
         let query = BooleanQuery::new(vec![

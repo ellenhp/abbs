@@ -5,13 +5,13 @@ use std::{
 };
 
 use bbs::BbsApp;
-use library::{push_library, Library};
 use ssh_ui::{russh_keys::decode_secret_key, AppServer};
 use tokio::spawn;
+use ui::library::{push_library, Library};
 
 mod bbs;
 
-pub(crate) mod library;
+pub(crate) mod ui;
 
 #[macro_use]
 extern crate tantivy;

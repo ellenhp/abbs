@@ -4,7 +4,7 @@ use ssh_ui::cursive::{
     Cursive, View,
 };
 
-pub(super) fn new_viewer(_siv: &mut Cursive, html: String) -> Box<dyn View> {
+pub(crate) fn new_viewer(_siv: &mut Cursive, html: String) -> Box<dyn View> {
     Box::new(
         TextView::new(html2text::from_read(html.as_bytes(), usize::MAX))
             .full_screen()
