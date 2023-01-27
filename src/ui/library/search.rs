@@ -174,9 +174,6 @@ impl View for LibrarySearchView {
     }
 
     fn call_on_any(&mut self, selector: &Selector, cb: AnyCb) {
-        if let Selector::Name(name) = selector {
-            dbg!(name);
-        }
         self.inner.call_on_any(selector, cb);
     }
 

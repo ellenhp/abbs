@@ -120,7 +120,6 @@ impl View for Stack {
     fn call_on_any(&mut self, selector: &Selector, cb: AnyCb) {
         match selector {
             Selector::Name(name) => {
-                dbg!(name);
                 self.stack
                     .lock()
                     .unwrap()
