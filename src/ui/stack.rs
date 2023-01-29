@@ -32,13 +32,19 @@ pub struct Stack {
 }
 
 impl Stack {
-    pub fn new(relayout_sender: Sender<()>, db: Arc<Mutex<DatabaseConnection>>) -> Self {
-        Self {
+    pub fn new(
+        siv: &mut Cursive,
+        relayout_sender: Sender<()>,
+        db: Arc<Mutex<DatabaseConnection>>,
+    ) -> Self {
+        let mut stack = Self {
             stack: Arc::new(Mutex::new(Vec::new())),
             dirty: true,
             relayout_sender,
             db,
-        }
+        };
+        stack.setup_esc(siv);
+        stack
     }
 
     pub fn push(&mut self, view: Box<dyn View>) -> Result<(), StackError> {
@@ -74,6 +80,17 @@ impl Stack {
     pub fn get_db(&self) -> Arc<Mutex<DatabaseConnection>> {
         self.db.clone()
     }
+
+    fn setup_esc(&mut self, siv: &mut Cursive) {
+        let stack_clone = self.stack.clone();
+        siv.set_on_post_event(Event::Key(Key::Esc), move |siv| {
+            let mut stack = stack_clone.lock().unwrap();
+            stack.pop();
+            if stack.len() == 0 {
+                siv.quit();
+            }
+        })
+    }
 }
 
 impl View for Stack {
@@ -106,22 +123,11 @@ impl View for Stack {
     }
 
     fn on_event(&mut self, event: Event) -> EventResult {
-        let stack = self.stack.clone();
-        match event {
-            Event::Key(Key::Esc) => EventResult::Consumed(Some(Callback::from_fn(move |siv| {
-                let mut stack = stack.lock().unwrap();
-                stack.pop();
-                if stack.len() == 0 {
-                    siv.quit();
-                }
-            }))),
-            _ => self
-                .stack
-                .lock()
-                .unwrap()
-                .last_mut()
-                .map_or(Ignored, |view| view.on_event(event)),
-        }
+        self.stack
+            .lock()
+            .unwrap()
+            .last_mut()
+            .map_or(Ignored, |view| view.on_event(event))
     }
 
     fn call_on_any(&mut self, selector: &Selector, cb: AnyCb) {

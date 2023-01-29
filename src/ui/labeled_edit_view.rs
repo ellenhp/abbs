@@ -2,7 +2,7 @@ use ssh_ui::cursive::{
     direction::Direction,
     event::{AnyCb, Event, EventResult},
     view::{CannotFocus, IntoBoxedView, Margins, Nameable, Resizable, Selector, ViewNotFound},
-    views::{EditView, LinearLayout, PaddedView, ResizedView, SelectView, TextView},
+    views::{EditView, LinearLayout, PaddedView, ResizedView, TextView},
     Cursive, Printer, Rect, Vec2, View,
 };
 

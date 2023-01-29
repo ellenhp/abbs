@@ -19,6 +19,7 @@ dependencies = [
  "html2text",
  "lazy_static",
  "log",
+ "regex",
  "sea-orm",
  "sea-orm-migration",
  "ssh_ui",

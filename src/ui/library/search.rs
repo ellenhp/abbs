@@ -11,7 +11,7 @@ use tokio::spawn;
 
 use crate::ui::{labeled_edit_view::LabeledEditView, stack::get_stack};
 
-use super::{get_library, viewer::new_viewer, Article, Library};
+use super::{get_library, viewer::ReaderView, Article, Library};
 
 fn search(lib: &Library, text: &str, limit: usize) -> Result<Vec<Article>, anyhow::Error> {
     let articles = lib.search(text, limit)?;
@@ -120,7 +120,7 @@ impl LibrarySearchView {
             )
         };
         let results_box = SelectView::<Article>::new().on_submit(|siv, item| {
-            let viewer = new_viewer(siv, item.content_html.clone());
+            let viewer = Box::new(ReaderView::new(&item.content_html).full_screen());
             get_stack(siv).push(viewer).unwrap();
         });
         let mut layout = LinearLayout::vertical()

@@ -3,16 +3,16 @@ use std::sync::{Arc, Mutex};
 use sea_orm::DatabaseConnection;
 use ssh_ui::{
     cursive::{
-        direction::{Direction, Orientation},
-        view::{Nameable, Resizable, ViewWrapper},
-        views::{DummyView, EditView, LinearLayout, ShadowView, TextView},
+        direction::Orientation,
+        view::Resizable,
+        views::{LinearLayout, TextView},
         View,
     },
     russh_keys::key::PublicKey,
 };
 use tokio::{runtime::Handle, task::block_in_place};
 
-use crate::user::{UserInfo, UserUtil};
+use crate::user::UserUtil;
 
 use super::{labeled_edit_view::LabeledEditView, stack::get_stack};
 

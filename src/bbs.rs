@@ -52,12 +52,12 @@ impl BbsAppSession {}
 impl AppSession for BbsAppSession {
     fn on_start(
         &mut self,
-        _siv: &mut Cursive,
+        siv: &mut Cursive,
         _handle: SessionHandle,
         pub_key: Option<PublicKey>,
         force_relayout_sender: Sender<()>,
     ) -> Result<Box<dyn ssh_ui::cursive::View>, Box<dyn std::error::Error>> {
-        let mut stack = Stack::new(force_relayout_sender.clone(), self.db.clone());
+        let mut stack = Stack::new(siv, force_relayout_sender.clone(), self.db.clone());
         stack
             .push(home_screen(
                 force_relayout_sender.clone(),
