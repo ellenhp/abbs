@@ -1,5 +1,6 @@
-use std::sync::mpsc::Sender;
+use std::sync::{mpsc::Sender, Arc, Mutex};
 
+use sea_orm::DatabaseConnection;
 use ssh_ui::{
     cursive::{
         view::{Margins, Nameable, Resizable},
@@ -15,7 +16,9 @@ use crate::ui::{
     stack::{Stack, STACK_NAME},
 };
 
-pub(crate) struct BbsApp {}
+pub(crate) struct BbsApp {
+    db: Arc<Mutex<DatabaseConnection>>,
+}
 
 impl App for BbsApp {
     fn on_load(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -26,12 +29,22 @@ impl App for BbsApp {
     fn new_session(&self) -> Box<dyn ssh_ui::AppSession> {
         Box::new(BbsAppSession {
             relayout_sender: None,
+            db: self.db.clone(),
         })
+    }
+}
+
+impl BbsApp {
+    pub fn new_with_db(db: DatabaseConnection) -> BbsApp {
+        BbsApp {
+            db: Arc::new(Mutex::new(db)),
+        }
     }
 }
 
 struct BbsAppSession {
     relayout_sender: Option<Sender<()>>,
+    db: Arc<Mutex<DatabaseConnection>>,
 }
 
 impl BbsAppSession {}
@@ -41,12 +54,16 @@ impl AppSession for BbsAppSession {
         &mut self,
         _siv: &mut Cursive,
         _handle: SessionHandle,
-        _pub_key: Option<PublicKey>,
+        pub_key: Option<PublicKey>,
         force_relayout_sender: Sender<()>,
     ) -> Result<Box<dyn ssh_ui::cursive::View>, Box<dyn std::error::Error>> {
-        let mut stack = Stack::new(force_relayout_sender.clone());
+        let mut stack = Stack::new(force_relayout_sender.clone(), self.db.clone());
         stack
-            .push(home_screen(force_relayout_sender.clone()))
+            .push(home_screen(
+                force_relayout_sender.clone(),
+                self.db.clone(),
+                pub_key.clone(),
+            ))
             .unwrap();
         self.relayout_sender = Some(force_relayout_sender);
         let dialog = Dialog::new()

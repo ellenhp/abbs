@@ -1,6 +1,7 @@
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
+use sea_orm::DatabaseConnection;
 use ssh_ui::cursive::direction::Direction;
 use ssh_ui::cursive::event::EventResult::Ignored;
 use ssh_ui::cursive::event::{AnyCb, Callback, Event, EventResult, Key};
@@ -27,14 +28,16 @@ pub struct Stack {
     stack: Arc<Mutex<Vec<Box<dyn View>>>>,
     dirty: bool,
     relayout_sender: Sender<()>,
+    db: Arc<Mutex<DatabaseConnection>>,
 }
 
 impl Stack {
-    pub fn new(relayout_sender: Sender<()>) -> Self {
+    pub fn new(relayout_sender: Sender<()>, db: Arc<Mutex<DatabaseConnection>>) -> Self {
         Self {
             stack: Arc::new(Mutex::new(Vec::new())),
             dirty: true,
             relayout_sender,
+            db,
         }
     }
 
@@ -66,6 +69,10 @@ impl Stack {
                 Err(StackError::StackEmpty)
             }
         }
+    }
+
+    pub fn get_db(&self) -> Arc<Mutex<DatabaseConnection>> {
+        self.db.clone()
     }
 }
 
@@ -120,6 +127,7 @@ impl View for Stack {
     fn call_on_any(&mut self, selector: &Selector, cb: AnyCb) {
         match selector {
             Selector::Name(name) => {
+                println!("{name}");
                 self.stack
                     .lock()
                     .unwrap()

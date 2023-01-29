@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ssh_ui = "0.4.0"
+ssh_ui = "0.4.1"
 anyhow = "1.0.68"
 html2text = "0.4.5"
 lazy_static = "1.4.0"
@@ -13,3 +13,12 @@ tokio = { version = "1", features = ["full"] }
 zim = "0.4.0"
 thiserror = "1.0.38"
 env_logger = "0.10.0"
+sea-orm = { version = "0.10.7", features = [
+    "runtime-tokio-rustls",
+    "sqlx-sqlite",
+    "sqlx-postgres",
+] }
+sea-orm-migration = "0.10.7"
+config = "0.13.3"
+log = "0.4.17"
+figlet-rs = "0.1.4"

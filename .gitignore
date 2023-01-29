@@ -2,3 +2,5 @@
 /_search_index*
 ssh_host*
 *.zim
+*.db
+.cargo
