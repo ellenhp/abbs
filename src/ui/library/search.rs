@@ -9,7 +9,7 @@ use ssh_ui::cursive::{
 };
 use tokio::spawn;
 
-use crate::ui::stack::get_stack;
+use crate::ui::{labeled_edit_view::LabeledEditView, stack::get_stack};
 
 use super::{get_library, viewer::new_viewer, Article, Library};
 
@@ -89,17 +89,11 @@ impl LibrarySearchView {
         let search_result_repository = Arc::new(Mutex::new((0, 0, Arc::new(Vec::new()), false)));
         let search_box = {
             let search_result_repository = search_result_repository.clone();
-            EditView::new()
-                .filler("Search for a book")
-                .on_edit_mut(move |siv, text, _cursor| {
-                    let mut search_box = siv.find_name::<EditView>("library_search_box").unwrap();
-                    if text.is_empty() {
-                        search_box.set_filler("Search for a book");
-                    } else {
-                        // Can't set to empty string due to panic on division by zero in cursive.
-                        search_box.set_filler(" ");
-                    }
-
+            LabeledEditView::new(
+                "Search for a book: ",
+                None,
+                "",
+                move |siv, text, _cursor| {
                     let max_results = siv.screen_size().y; // Upper bound.
                     let text = text.to_string();
                     let lib_name = lib_name.clone();
@@ -116,23 +110,26 @@ impl LibrarySearchView {
                         }
                         relayout_sender.send(()).unwrap();
                     });
-                })
-                .on_submit(|siv, search_term| {
+                },
+                |siv, search_term| {
                     if !search_term.is_empty() {
                         siv.focus_name("library_search_results").unwrap();
                     }
-                })
+                },
+                "library_search_box",
+            )
         };
         let results_box = SelectView::<Article>::new().on_submit(|siv, item| {
             let viewer = new_viewer(siv, item.content_html.clone());
             get_stack(siv).push(viewer).unwrap();
         });
+        let mut layout = LinearLayout::vertical()
+            .child(search_box)
+            .child(DummyView)
+            .child(results_box.with_name("library_search_results"));
+        layout.set_focus_index(0).unwrap();
         LibrarySearchView {
-            inner: LinearLayout::vertical()
-                .child(search_box.with_name("library_search_box"))
-                .child(DummyView)
-                .child(results_box.with_name("library_search_results"))
-                .full_screen(),
+            inner: layout.full_screen(),
             search_result_repository,
         }
     }
