@@ -4,7 +4,7 @@ use ssh_ui::cursive::{
     direction::Direction,
     event::{AnyCb, Event, EventResult},
     view::{CannotFocus, Nameable, Resizable, Selector, ViewNotFound},
-    views::{DummyView, EditView, LinearLayout, NamedView, ResizedView, SelectView},
+    views::{DummyView, LinearLayout, NamedView, ResizedView, SelectView},
     Printer, Vec2, View,
 };
 use tokio::spawn;

@@ -4,3 +4,5 @@ ssh_host*
 *.zim
 *.db
 .cargo
+Config.toml
+*.sqlite

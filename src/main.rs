@@ -61,8 +61,11 @@ async fn main() {
         .await
         .expect("Failed to load database.");
 
+    let library_path = settings
+        .get_string("library_path")
+        .unwrap_or("./library.zim".into());
     spawn(async {
-        let lib = Library::open::<String>("library", "library.zim".into(), "_search_index".into())
+        let lib = Library::open::<String>("library", library_path, "_search_index".into())
             .await
             .expect("Failed to open library");
         println!("Opened library");

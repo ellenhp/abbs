@@ -3,10 +3,10 @@ use ssh_ui::cursive::{
     direction::{Direction, Orientation},
     event::{AnyCb, Callback, Event, EventResult, Key},
     reexports::enumset,
-    theme::{Color, ColorStyle, Effect, Style},
+    theme::{ColorStyle, Effect, Style},
     utils::span::{IndexedCow, IndexedSpan, SpannedString},
-    view::{scroll::Scroller, CannotFocus, Resizable, Scrollable, Selector, ViewNotFound},
-    views::{EditView, LinearLayout, ResizedView, ScrollView, TextView},
+    view::{CannotFocus, Resizable, Selector, ViewNotFound},
+    views::{EditView, LinearLayout, ResizedView, TextView},
     Printer, Rect, Vec2, View,
 };
 
@@ -18,12 +18,13 @@ pub struct ReaderView {
     html: String,
     text_wrapped: String,
     line_offsets: Vec<usize>,
+    char_offset: usize,
     current_match: Option<(usize, usize)>,
 }
 
 impl ReaderView {
     pub fn new(html: &str) -> ReaderView {
-        let reader = TextView::new("Loading...").scrollable().full_screen();
+        let reader = TextView::new("Loading...").full_screen();
         let searcher = EditView::new().disabled().full_width();
         ReaderView {
             inner: LinearLayout::new(Orientation::Vertical)
@@ -34,17 +35,18 @@ impl ReaderView {
             html: html.to_string(),
             text_wrapped: "".into(),
             line_offsets: vec![],
+            char_offset: 0,
             current_match: None,
         }
     }
 
-    fn get_reader<'a>(&'a mut self) -> &'a mut ScrollView<TextView> {
+    fn get_reader<'a>(&'a mut self) -> &'a mut TextView {
         self.inner
             .get_inner_mut()
             .get_child_mut(0)
             .unwrap()
             .as_any_mut()
-            .downcast_mut::<ResizedView<ScrollView<TextView>>>()
+            .downcast_mut::<ResizedView<TextView>>()
             .unwrap()
             .get_inner_mut()
     }
@@ -70,59 +72,58 @@ impl ReaderView {
         return self.line_offsets.len() - 1;
     }
 
+    fn scroll_by_lines(&mut self, lines: i32) {
+        let line = self.find_line(self.char_offset);
+        let target_line = i32::clamp(line as i32 + lines, 0, self.line_offsets.len() as i32).clamp(
+            0,
+            i32::max(0, self.line_offsets.len() as i32 - self.size.y as i32),
+        );
+        self.scroll_to_line(target_line as usize);
+    }
+
+    fn scroll_to_line(&mut self, line: usize) {
+        self.char_offset = self.line_offsets[line.clamp(0, self.line_offsets.len() - 1)];
+    }
+
     fn set_match(&mut self, start: usize, end: usize) {
         self.current_match = Some((start, end));
-        let line = self.find_line(start);
         let text = self.text_wrapped.clone();
         let total_chars = text.len();
-        self.get_reader()
-            .get_inner_mut()
-            .set_content(SpannedString::with_spans(
-                text,
-                vec![
-                    IndexedSpan {
-                        content: IndexedCow::Borrowed {
-                            start: 0,
-                            end: start,
-                        },
-                        attr: Style {
-                            effects: enumset::enum_set!(Effect::Simple),
-                            color: ColorStyle::inherit_parent(),
-                        },
-                        width: start,
+        self.get_reader().set_content(SpannedString::with_spans(
+            text,
+            vec![
+                IndexedSpan {
+                    content: IndexedCow::Borrowed {
+                        start: 0,
+                        end: start,
                     },
-                    IndexedSpan {
-                        content: IndexedCow::Borrowed { start, end },
-                        attr: Style {
-                            effects: enumset::enum_set!(Effect::Reverse),
-                            color: ColorStyle::inherit_parent(),
-                        },
-                        width: end - start,
+                    attr: Style {
+                        effects: enumset::enum_set!(Effect::Simple),
+                        color: ColorStyle::inherit_parent(),
                     },
-                    IndexedSpan {
-                        content: IndexedCow::Borrowed {
-                            start: end,
-                            end: total_chars,
-                        },
-                        attr: Style {
-                            effects: enumset::enum_set!(Effect::Simple),
-                            color: ColorStyle::inherit_parent(),
-                        },
-                        width: total_chars - end,
+                    width: start,
+                },
+                IndexedSpan {
+                    content: IndexedCow::Borrowed { start, end },
+                    attr: Style {
+                        effects: enumset::enum_set!(Effect::Reverse),
+                        color: ColorStyle::inherit_parent(),
                     },
-                ],
-            ));
-
-        let reader = self.get_reader();
-        if line < reader.content_viewport().top() || line > reader.content_viewport().bottom() {
-            let target_line = i64::max(
-                0,
-                (line as i64) - (reader.content_viewport().height() as i64 / 2),
-            ) as usize;
-            reader
-                .get_scroller_mut()
-                .set_offset(Vec2::new(0, target_line));
-        }
+                    width: end - start,
+                },
+                IndexedSpan {
+                    content: IndexedCow::Borrowed {
+                        start: end,
+                        end: total_chars,
+                    },
+                    attr: Style {
+                        effects: enumset::enum_set!(Effect::Simple),
+                        color: ColorStyle::inherit_parent(),
+                    },
+                    width: total_chars - end,
+                },
+            ],
+        ));
     }
 
     fn update_search(&mut self, search_term: &str, next: bool) {
@@ -156,11 +157,18 @@ impl View for ReaderView {
                 line_offsets.push(line_offsets.last().unwrap() + line.len() + 1)
             }
             self.line_offsets = line_offsets;
-            let text = self.text_wrapped.clone();
-            self.get_reader()
-                .get_inner_mut()
-                .set_content(SpannedString::<Style>::plain(text));
         }
+        let current_line = self.find_line(self.char_offset);
+
+        let end_char = if current_line + size.y >= self.line_offsets.len() {
+            self.text_wrapped.len()
+        } else {
+            self.line_offsets[current_line + size.y]
+        };
+        let end_char = end_char.clamp(0, self.text_wrapped.len());
+        let char_offset = self.char_offset.clamp(0, self.text_wrapped.len());
+        let wrapped_string = self.text_wrapped[char_offset..end_char].to_string();
+        self.get_reader().set_content(wrapped_string);
         self.size = size;
         self.inner.layout(size)
     }
@@ -179,15 +187,19 @@ impl View for ReaderView {
             // Reader is focused.
             match event {
                 Event::Char(' ') | Event::Key(Key::PageDown) => {
-                    self.get_reader()
-                        .get_scroller_mut()
-                        .scroll_down(page_scroll_height);
+                    self.scroll_by_lines(page_scroll_height as i32);
                     EventResult::Consumed(None)
                 }
                 Event::Key(Key::PageUp) => {
-                    self.get_reader()
-                        .get_scroller_mut()
-                        .scroll_up(page_scroll_height);
+                    self.scroll_by_lines(-(page_scroll_height as i32));
+                    EventResult::Consumed(None)
+                }
+                Event::Key(Key::Down) => {
+                    self.scroll_by_lines(1);
+                    EventResult::Consumed(None)
+                }
+                Event::Key(Key::Up) => {
+                    self.scroll_by_lines(-1);
                     EventResult::Consumed(None)
                 }
                 Event::Char('/') => {
@@ -210,7 +222,7 @@ impl View for ReaderView {
                     search.disable();
                     search.set_content("");
                     let text = self.text_wrapped.clone();
-                    self.get_reader().get_inner_mut().set_content(text);
+                    self.get_reader().set_content(text);
                     EventResult::Consumed(None)
                 }
                 Event::Key(Key::Enter) => {

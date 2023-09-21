@@ -1,5 +1,6 @@
 use std::sync::{mpsc::Sender, Arc, Mutex};
 
+use log::info;
 use sea_orm::DatabaseConnection;
 use ssh_ui::{
     cursive::{
@@ -57,6 +58,7 @@ impl AppSession for BbsAppSession {
         pub_key: Option<PublicKey>,
         force_relayout_sender: Sender<()>,
     ) -> Result<Box<dyn ssh_ui::cursive::View>, Box<dyn std::error::Error>> {
+        info!("Starting new session, user: {:?}", pub_key);
         let mut stack = Stack::new(siv, force_relayout_sender.clone(), self.db.clone());
         stack
             .push(home_screen(

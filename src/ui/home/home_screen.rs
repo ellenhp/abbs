@@ -1,13 +1,9 @@
-use std::{
-    fmt::format,
-    sync::{mpsc::Sender, Arc, Mutex},
-};
+use std::sync::{mpsc::Sender, Arc, Mutex};
 
 use figlet_rs::FIGfont;
 use sea_orm::DatabaseConnection;
 use ssh_ui::{
     cursive::{
-        direction::Orientation,
         views::{DummyView, LinearLayout, SelectView, TextView},
         View,
     },

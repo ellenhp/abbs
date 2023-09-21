@@ -1,7 +1,7 @@
 pub mod search;
 pub mod viewer;
 
-use std::fs::{create_dir, remove_dir, rename};
+use std::fs::{create_dir, remove_dir_all, rename};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -106,8 +106,8 @@ impl Library {
             index_directory.join(format!("{:X}.idx.tmp", zim.checksum).to_string());
         let tmp_path: &Path = Path::new(&tmp_path_string);
         if tmp_path.exists() {
-            // Only removes the directory if it is empty.
-            remove_dir(&tmp_path_string)?;
+            // Careful: Remove the temp directory in case we stopped mid-index.
+            remove_dir_all(tmp_path)?;
         }
         create_dir(&tmp_path)?;
         {

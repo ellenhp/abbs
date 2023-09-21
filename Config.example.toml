@@ -1,0 +1,3 @@
+db_url = "sqlite://abbs.sqlite"
+library_path = "library.zim"
+listen_port = 2222
