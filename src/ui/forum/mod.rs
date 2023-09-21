@@ -89,9 +89,7 @@ impl ChatBoxView {
         });
 
         senders.iter().for_each(|sender| {
-            sender
-                .blocking_send(format!("<join> {}", user.handle))
-                .unwrap()
+            let _ = sender.blocking_send(format!("<join> {}", user.handle));
         });
         Self {
             inner: ResizedView::with_full_screen(inner),
