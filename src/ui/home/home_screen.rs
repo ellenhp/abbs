@@ -1,4 +1,4 @@
-use std::sync::{mpsc::Sender, Arc, Mutex};
+use std::sync::Arc;
 
 use figlet_rs::FIGfont;
 use sea_orm::DatabaseConnection;
@@ -9,10 +9,17 @@ use ssh_ui::{
     },
     russh_keys::key::PublicKey,
 };
-use tokio::{runtime::Handle, task::block_in_place};
+use tokio::{
+    runtime::Handle,
+    sync::{mpsc::Sender, Mutex},
+    task::block_in_place,
+};
 
 use crate::{
-    ui::{library::search::LibrarySearchView, profile::profile_screen, stack::get_stack},
+    ui::{
+        forum::ChatBoxView, library::search::LibrarySearchView, profile::profile_screen,
+        stack::get_stack,
+    },
     user::UserUtil,
 };
 
@@ -31,7 +38,7 @@ pub fn home_screen(
     let mut select_view = SelectView::new()
         .item("Edit your (P)rofile", HomeOption::Profile)
         .item(
-            "(UNIMPLEMENTED) (F)orum: Discussion boards for various topics",
+            "(F)orum: Discussion boards for various topics",
             HomeOption::Forum,
         )
         .item("Visit the (L)ibrary", HomeOption::Library)
@@ -45,7 +52,15 @@ pub fn home_screen(
                     .push(profile_screen(db.clone(), key.clone()))
                     .unwrap();
             }
-            HomeOption::Forum => {}
+            HomeOption::Forum => {
+                get_stack(siv)
+                    .push(Box::new(ChatBoxView::new(
+                        db.clone(),
+                        key.clone(),
+                        force_relayout_sender.clone(),
+                    )))
+                    .unwrap();
+            }
             HomeOption::Library => {
                 get_stack(siv)
                     .push(Box::new(LibrarySearchView::new(

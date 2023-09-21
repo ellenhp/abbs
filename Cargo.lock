@@ -3740,8 +3740,6 @@ dependencies = [
 [[package]]
 name = "ssh_ui"
 version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a59180ad4151bce92b0b54fa27102df6150edab84c6b50bad8e7d99be2bce85f"
 dependencies = [
  "anyhow",
  "async-std",

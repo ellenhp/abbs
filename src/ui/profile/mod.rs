@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use sea_orm::DatabaseConnection;
 use ssh_ui::{
@@ -10,7 +10,7 @@ use ssh_ui::{
     },
     russh_keys::key::PublicKey,
 };
-use tokio::{runtime::Handle, task::block_in_place};
+use tokio::{runtime::Handle, sync::Mutex, task::block_in_place};
 
 use crate::user::UserUtil;
 
@@ -48,7 +48,7 @@ pub fn profile_screen(db: Arc<Mutex<DatabaseConnection>>, key: Option<PublicKey>
                 Some(min_width),
                 &initial_handle,
                 move |_siv, val, _cursor| {
-                    *handle_val.lock().unwrap() = val.to_string();
+                    *handle_val.blocking_lock() = val.to_string();
                 },
                 |siv, _val| {
                     siv.focus_name(contact_label).unwrap();
@@ -68,9 +68,9 @@ pub fn profile_screen(db: Arc<Mutex<DatabaseConnection>>, key: Option<PublicKey>
                 Some(min_width),
                 &initial_contact,
                 move |_siv, val, _cursor| {
-                    *contact_val.lock().unwrap() = val.to_string();
+                    *contact_val.blocking_lock() = val.to_string();
                 },
-                move |siv, val| {
+                move |siv, _val| {
                     let db = db.clone();
                     let key = key.clone();
                     let handle_val = handle_val.clone();
@@ -80,8 +80,8 @@ pub fn profile_screen(db: Arc<Mutex<DatabaseConnection>>, key: Option<PublicKey>
                             let user_util = UserUtil::new(db.clone(), Some(key.clone()));
                             user_util
                                 .set_user(
-                                    &*handle_val.lock().unwrap(),
-                                    &*contact_val.lock().unwrap(),
+                                    &*handle_val.blocking_lock(),
+                                    &*contact_val.blocking_lock(),
                                 )
                                 .await
                                 .unwrap();

@@ -1,6 +1,6 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use crate::db::gen::prelude::{PublicKey, User};
+use crate::db::gen::prelude::PublicKey;
 use crate::db::gen::{public_key, user};
 use anyhow::Ok;
 use sea_orm::{
@@ -9,17 +9,20 @@ use sea_orm::{
 };
 use ssh_ui::russh_keys::key::PublicKey as RusshPublicKey;
 use thiserror::Error;
+use tokio::sync::Mutex;
 
+#[derive(Debug, Clone)]
 pub struct UserId(i32);
 
 pub struct UserUtil {
     db: Arc<Mutex<DatabaseConnection>>,
     key: Option<RusshPublicKey>,
-    active_user: Arc<Mutex<Option<i32>>>,
+    _active_user: Arc<Mutex<Option<i32>>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct UserInfo {
-    id: Option<UserId>,
+    _id: Option<UserId>,
     pub handle: String,
     pub contact: String,
 }
@@ -27,7 +30,7 @@ pub struct UserInfo {
 impl Default for UserInfo {
     fn default() -> Self {
         Self {
-            id: None,
+            _id: None,
             handle: Default::default(),
             contact: Default::default(),
         }
@@ -49,7 +52,7 @@ impl UserUtil {
         UserUtil {
             db,
             key,
-            active_user: Arc::new(Mutex::new(None)),
+            _active_user: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -59,7 +62,7 @@ impl UserUtil {
         } else {
             return Err(UserUtilError::KeyNotPresent.into());
         };
-        let mut db = self.db.lock().unwrap().to_owned(); // TODO: Remove unwrap with anyhow
+        let mut db = self.db.lock().await.to_owned(); // TODO: Remove unwrap with anyhow
 
         if let Result::Ok(_) = self.get_user().await {
             // TODO: Do this atomically.
@@ -105,7 +108,7 @@ impl UserUtil {
         } else {
             return Err(UserUtilError::KeyNotPresent.into());
         };
-        let db = self.db.lock().unwrap().to_owned(); // TODO: Remove unwrap with anyhow
+        let db = self.db.lock().await.to_owned(); // TODO: Remove unwrap with anyhow
 
         let key = PublicKey::find()
             .filter(public_key::Column::Fingerprint.eq(key.fingerprint()))
@@ -115,7 +118,7 @@ impl UserUtil {
         if let Some(key) = key {
             if let Some(user) = key.find_related(user::Entity).one(&db).await? {
                 Ok(UserInfo {
-                    id: Some(UserId(user.id)),
+                    _id: Some(UserId(user.id)),
                     handle: user.handle,
                     contact: user.contact.unwrap_or("".into()),
                 })

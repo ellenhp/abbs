@@ -1,4 +1,4 @@
-use std::sync::{mpsc::Sender, Arc, Mutex};
+use std::sync::Arc;
 
 use log::info;
 use sea_orm::DatabaseConnection;
@@ -11,6 +11,7 @@ use ssh_ui::{
     russh_keys::key::PublicKey,
     App, AppSession, SessionHandle,
 };
+use tokio::sync::{mpsc::Sender, Mutex};
 
 use crate::ui::{
     home::home_screen::home_screen,

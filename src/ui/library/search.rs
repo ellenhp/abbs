@@ -1,4 +1,4 @@
-use std::sync::{mpsc::Sender, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 
 use ssh_ui::cursive::{
     direction::Direction,
@@ -7,7 +7,7 @@ use ssh_ui::cursive::{
     views::{DummyView, LinearLayout, NamedView, ResizedView, SelectView},
     Printer, Vec2, View,
 };
-use tokio::spawn;
+use tokio::{spawn, sync::mpsc::Sender};
 
 use crate::ui::{labeled_edit_view::LabeledEditView, stack::get_stack};
 
@@ -108,7 +108,7 @@ impl LibrarySearchView {
                                 println!("Error during search: {}", err);
                             }
                         }
-                        relayout_sender.send(()).unwrap();
+                        relayout_sender.send(()).await.unwrap();
                     });
                 },
                 |siv, search_term| {
