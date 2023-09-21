@@ -80,8 +80,8 @@ pub fn profile_screen(db: Arc<Mutex<DatabaseConnection>>, key: Option<PublicKey>
                             let user_util = UserUtil::new(db.clone(), Some(key.clone()));
                             user_util
                                 .set_user(
-                                    &*handle_val.blocking_lock(),
-                                    &*contact_val.blocking_lock(),
+                                    &*handle_val.lock().await,
+                                    &*contact_val.lock().await,
                                 )
                                 .await
                                 .unwrap();
